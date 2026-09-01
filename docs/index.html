@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>פרויקט SQL — חמישה חלקים</title>
+<style>
+  :root{
+    --bg:#0e1016; --panel:#141924; --line:#242a38;
+    --ink:#e7e9ee; --dim:#98a0b3; --accent:#E8C55C;
+    --kw:#c792ea; --str:#7fd1a8; --num:#f2a05a; --com:#5f6a7f;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0;background:var(--bg);color:var(--ink);
+       font:15px/1.6 "Segoe UI",system-ui,-apple-system,Arial,sans-serif;
+       display:flex;flex-direction:column}
+
+  header{padding:1.3rem 1.4rem 1rem;border-block-end:1px solid var(--line);
+         background:linear-gradient(180deg,#141926,#0e1016)}
+  h1{margin:0 0 .25rem;font-size:1.35rem;letter-spacing:-.01em}
+  h1 b{color:var(--accent);font-weight:600}
+  header p{margin:0;color:var(--dim);font-size:.9rem;max-width:64ch}
+  header a{color:var(--accent);text-decoration:none}
+  header a:hover{text-decoration:underline}
+
+  nav{display:flex;gap:.4rem;flex-wrap:wrap;padding:.85rem 1.4rem;
+      border-block-end:1px solid var(--line);background:var(--panel)}
+  nav button{font:inherit;font-size:.87rem;padding:.35rem .85rem;cursor:pointer;
+             color:var(--dim);background:transparent;border:1px solid var(--line);
+             border-radius:999px;transition:color .15s,border-color .15s,background .15s}
+  nav button:hover{color:var(--ink);border-color:#39415a}
+  nav button[aria-selected="true"]{color:#0e1016;background:var(--accent);
+                                   border-color:var(--accent);font-weight:600}
+
+  main{flex:1;overflow:auto;padding:1.1rem 1.4rem 2.5rem}
+  pre{margin:0;font:13px/1.75 ui-monospace,"Cascadia Code",Consolas,monospace;
+      white-space:pre;tab-size:2;color:#dbe0ea;direction:ltr;text-align:left}
+  .ln{color:#3d4557;user-select:none;display:inline-block;
+      width:3.2em;text-align:right;padding-inline-end:1em}
+  .kw{color:var(--kw)} .str{color:var(--str)}
+  .num{color:var(--num)} .com{color:var(--com);font-style:italic}
+  .msg{color:var(--dim);font-style:italic}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>פרויקט <b>SQL</b> — חמישה חלקים</h1>
+  <p>
+    הסקריפטים האמיתיים מהריפו, מוצגים כאן כדי שאפשר יהיה לקרוא אותם בלי להוריד קובץ.
+    <a href="https://github.com/Ruti-maman/sql-final-project">הקוד בגיטהאב ↗</a>
+  </p>
+</header>
+
+<nav id="tabs"></nav>
+<main><pre id="code" class="msg">טוען…</pre></main>
+
+<script>
+var PARTS = [
+  { file: "partA.sql", label: "חלק א׳" },
+  { file: "partB.sql", label: "חלק ב׳" },
+  { file: "partC.sql", label: "חלק ג׳" },
+  { file: "partD.sql", label: "חלק ד׳" },
+  { file: "partE.sql", label: "חלק ה׳" }
+];
+
+var KEYWORDS = ("select|from|where|join|inner|left|right|full|outer|on|group|by|order|having|"
+  + "insert|into|values|update|set|delete|create|alter|drop|table|view|procedure|function|trigger|"
+  + "index|primary|foreign|key|references|constraint|not|null|default|identity|and|or|in|exists|"
+  + "between|like|as|distinct|top|union|all|case|when|then|else|end|begin|declare|if|while|return|"
+  + "with|cast|convert|int|varchar|nvarchar|date|datetime|decimal|bit|use|go|desc|asc|count|sum|"
+  + "avg|min|max|is|add|column|database|over|partition|row_number|rank|dense_rank|cross|apply"
+).split("|");
+
+function esc(s){
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Alternation order is the whole trick: a comment or a string claims its text
+// before the keyword branch can reach it, so the word "order" sitting inside a
+// comment stays grey. Escaping happens per slice, so what lands on the page is
+// character-for-character the .sql file - the highlighter never rewrites code.
+function highlight(src){
+  var re = new RegExp(
+      "(--[^\\n]*|/\\*[\\s\\S]*?\\*/)"              // 1 - comment
+    + "|('(?:[^']|'')*')"                           // 2 - string, '' escapes a quote
+    + "|(\\b\\d+(?:\\.\\d+)?\\b)"                   // 3 - number
+    + "|(\\b(?:" + KEYWORDS.join("|") + ")\\b)",    // 4 - keyword
+    "gi");
+
+  var CLS = { 1: "com", 2: "str", 3: "num", 4: "kw" };
+  var out = "", last = 0, m, g;
+
+  while ((m = re.exec(src)) !== null) {
+    for (g = 1; g <= 4; g++) { if (m[g] !== undefined) break; }
+    out += esc(src.slice(last, m.index))
+        +  '<span class="' + CLS[g] + '">' + esc(m[0]) + '</span>';
+    last = m.index + m[0].length;
+  }
+  return out + esc(src.slice(last));
+}
+
+function withLineNumbers(html){
+  return html.split("\n").map(function(line, i){
+    return '<span class="ln">' + (i + 1) + '</span>' + line;
+  }).join("\n");
+}
+
+var tabs  = document.getElementById("tabs");
+var code  = document.getElementById("code");
+var cache = {};
+
+function show(part, btn){
+  Array.prototype.forEach.call(tabs.children, function(b){
+    b.setAttribute("aria-selected", b === btn ? "true" : "false");
+  });
+  code.className = "msg";
+  code.textContent = "טוען…";
+
+  var render = function(text){
+    cache[part.file] = text;
+    code.className = "";
+    code.innerHTML = withLineNumbers(highlight(text));
+    code.parentElement.scrollTop = 0;
+  };
+
+  if (part.file in cache) { render(cache[part.file]); return; }
+
+  fetch("./" + part.file)
+    .then(function(r){
+      if (!r.ok) throw new Error("HTTP " + r.status);
+      return r.text();
+    })
+    .then(render)
+    .catch(function(e){
+      code.className = "msg";
+      code.textContent = "לא הצלחתי לטעון את " + part.file + " (" + e.message + ")";
+    });
+}
+
+PARTS.forEach(function(p, i){
+  var b = document.createElement("button");
+  b.type = "button";
+  b.textContent = p.label;
+  b.setAttribute("aria-selected", "false");
+  b.addEventListener("click", function(){ show(p, b); });
+  tabs.appendChild(b);
+  if (i === 0) show(p, b);
+});
+</script>
+
+</body>
+</html>
